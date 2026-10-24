@@ -1,34 +1,46 @@
 # Crypto Market Intelligence Agent
 
-A TypeScript-based market intelligence agent that scans liquid cryptocurrency markets, investigates unusual movements, evaluates evidence, and optionally sends a Telegram report.
+An English-language, TypeScript cryptocurrency intelligence agent. It scans the Binance spot market for large 24-hour movements, investigates historical price/volume data, searches news for major movers, generates cautious summaries, evaluates quality, and optionally sends a Telegram notification. **It never executes trades.**
 
 ## Architecture
 
-Scheduler -> Market Scanner -> Planner -> Market/Historical/News Tools -> Reasoner -> Evaluator -> Notification
+```text
+Scheduler -> Scan -> Plan / Investigate (historical + news tools)
+                  -> Reason (OpenAI optional; deterministic fallback)
+                  -> Evaluate -> retry investigation if necessary
+                  -> Save JSON report -> Telegram / console
+```
 
-The initial implementation uses transparent, deterministic planning and summarization. An LLM-based planning layer can be added later behind the same interfaces. It does not trade.
+The workflow uses LangGraph. The planner currently selects tools using transparent thresholds; LLM reasoning is available when configured. This is not an unconstrained autonomous planner.
 
 ## Quick start
 
-1. Install Node.js 20 or newer.
-2. Run `npm install`.
-3. Copy `.env.example` to `.env`.
-4. Run `npm run dev` for a one-time report.
-5. Configure Telegram credentials to enable delivery.
+Requires Node.js 20+.
+
+```bash
+npm install
+cp .env.example .env
+npm run check
+npm test
+npm run dev
+```
+
+A report is saved to `reports/latest.json`. With no Telegram credentials, the report prints to the console.
 
 ## Configuration
 
-- `TOP_N`: Maximum number of assets in the report, default 5.
-- `MIN_VOLUME_USD`: Minimum 24-hour quoted volume, default 10000000.
-- `MIN_ABS_CHANGE_PCT`: Absolute 24-hour percentage change threshold, default 5.
-- `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`: Both required for Telegram delivery.
+See `.env.example`. Set `OPENAI_API_KEY` for LLM summaries, and `TELEGRAM_BOT_TOKEN` plus `TELEGRAM_CHAT_ID` for Telegram delivery. Set `RUN_INTERVAL_MINUTES=1440` for a daily interval while the process stays alive; production scheduling should use an external scheduler with persistent execution state.
 
-Market data comes from Binance public market endpoints. This is a research tool, not investment advice.
+## Data sources and caveats
 
-## Roadmap
+- Binance public spot 24-hour ticker and daily candle APIs.
+- GDELT news article discovery for major movers. Headlines are not independently verified.
+- Historical daily volatility uses completed candle returns; latest candle volume may be partial.
+- LLM-generated explanations must be treated as hypotheses, not proven causes.
+- Failed tool requests are retried with exponential backoff. Evaluation failures trigger bounded re-investigation and are explicitly marked in reports.
+- Telegram delivery errors propagate to the process. No persistent notification retry queue or exactly-once delivery guarantee exists yet.
+- No exchange keys or trading functionality are required.
 
-- LLM-assisted evidence-aware planning with structured tool calls
-- News search adapters and citation-backed event analysis
-- Historical price anomaly baselines
-- Durable job scheduling, queues, retries, and deduplication
-- Evaluation metrics, tracing, persistent storage, and tests
+## Planned production hardening
+
+Durable BullMQ jobs, PostgreSQL/TimescaleDB history, idempotent notifications, metrics/tracing, integration tests with mocked providers, rate limiting, source-specific circuit breakers, stronger claim-level fact checking, and deployment automation.
