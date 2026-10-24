@@ -1,15 +1,17 @@
 {
   "name": "crypto-market-intelligence-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test src/**/*.test.ts"
   },
   "dependencies": {
+    "@langchain/langgraph": "^0.2.74",
     "dotenv": "^16.4.5",
     "zod": "^3.23.8"
   },
